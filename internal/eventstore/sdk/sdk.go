@@ -12,6 +12,7 @@ type filterFunc func(context.Context, *es_models.SearchQuery) ([]*es_models.Even
 type appendFunc func(...*es_models.Event) error
 type aggregateFunc func(context.Context) (*es_models.Aggregate, error)
 type pushFunc func(context.Context, ...*es_models.Aggregate) error
+type pushStructFunc func(ctx context.Context, aggregates []models.AggregateStruct) (err error)
 
 func Filter(ctx context.Context, filter filterFunc, appender appendFunc, query *es_models.SearchQuery) error {
 	events, err := filter(ctx, query)
@@ -61,6 +62,14 @@ func PushAggregates(ctx context.Context, push pushFunc, appender appendFunc, agg
 	}
 
 	return appendAggregates(appender, aggregates)
+}
+
+func PushAggregatesStructs(ctx context.Context, push pushStructFunc, aggregates ...models.AggregateStruct) (err error) {
+	if len(aggregates) < 1 {
+		return errors.ThrowPreconditionFailed(nil, "SDK-q9wjp", "no aggregaters passed")
+	}
+
+	return push(ctx, aggregates)
 }
 
 func appendAggregates(appender appendFunc, aggregates []*models.Aggregate) error {

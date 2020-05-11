@@ -13,6 +13,8 @@ type Eventstore interface {
 	Health(ctx context.Context) error
 	PushAggregates(ctx context.Context, aggregates ...*models.Aggregate) error
 	FilterEvents(ctx context.Context, searchQuery *models.SearchQuery) (events []*models.Event, err error)
+
+	PushAggregateStructs(ctx context.Context, aggregates []models.AggregateStruct) (err error)
 }
 
 var _ Eventstore = (*eventstore)(nil)
@@ -43,6 +45,13 @@ func (es *eventstore) PushAggregates(ctx context.Context, aggregates ...*models.
 	}
 
 	return nil
+}
+
+func (es *eventstore) PushAggregateStructs(ctx context.Context, aggregates []models.AggregateStruct) (err error) {
+	if len(aggregates) == 0 {
+		return errors.ThrowInvalidArgument(nil, "EVENT-eTPXl", "no aggregates")
+	}
+	return es.repo.PushAggregateStructs(ctx, aggregates)
 }
 
 func (es *eventstore) FilterEvents(ctx context.Context, searchQuery *models.SearchQuery) ([]*models.Event, error) {

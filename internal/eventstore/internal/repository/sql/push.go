@@ -52,6 +52,51 @@ func (db *SQL) PushAggregates(ctx context.Context, aggregates ...*models.Aggrega
 	return err
 }
 
+func (db *SQL) PushAggregateStructs(ctx context.Context, aggregates []models.AggregateStruct) (err error) {
+	err = crdb.ExecuteTx(ctx, db.client, nil, func(tx *sql.Tx) error {
+		stmt, err := tx.Prepare(insertStmt)
+		if err != nil {
+			tx.Rollback()
+			logging.Log("SQL-9ctx5").WithError(err).Warn("prepare failed")
+			return caos_errs.ThrowInternal(err, "SQL-juCgA", "prepare failed")
+		}
+		for _, aggregate := range aggregates {
+			query := aggregate.ValidationQuery()
+			events := make([]*models.Event, 0)
+			if query != nil {
+				events, err = filter(tx, query)
+				if err != nil {
+					tx.Rollback()
+					return err
+				}
+			}
+			err = aggregate.Validate(events...)
+			if err != nil {
+				tx.Rollback()
+				return caos_errs.ThrowPreconditionFailed(err, "SQL-3rsEz", "validation failed")
+			}
+			events, err := aggregate.ToEvents(ctx)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			err = insertEvents(stmt, Sequence(aggregate.PreviousSequence()), events)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil && !errors.Is(err, &caos_errs.CaosError{}) {
+		err = caos_errs.ThrowInternal(err, "SQL-DjgtG", "unable to store events")
+	}
+
+	return err
+}
+
 func precondtion(tx *sql.Tx, aggregate *models.Aggregate) error {
 	if aggregate.Precondition == nil {
 		return nil

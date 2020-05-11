@@ -1,10 +1,18 @@
 package models
 
 import (
+	"context"
 	"time"
 
 	"github.com/caos/zitadel/internal/errors"
 )
+
+type AggregateStruct interface {
+	ValidationQuery() *SearchQuery
+	Validate(events ...*Event) error
+	ToEvents(ctx context.Context) ([]*Event, error)
+	PreviousSequence() uint64
+}
 
 type AggregateType string
 
@@ -36,7 +44,7 @@ func (a *Aggregate) AppendEvent(typ EventType, payload interface{}) (*Aggregate,
 	if string(typ) == "" {
 		return a, errors.ThrowInvalidArgument(nil, "MODEL-TGoCb", "no event type")
 	}
-	data, err := eventData(payload)
+	data, err := EventData(payload)
 	if err != nil {
 		return a, err
 	}

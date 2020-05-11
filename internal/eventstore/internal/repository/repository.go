@@ -14,4 +14,6 @@ type Repository interface {
 	PushAggregates(ctx context.Context, aggregates ...*models.Aggregate) error
 	// Filter returns all events matching the given search query
 	Filter(ctx context.Context, searchQuery *models.SearchQuery) (events []*models.Event, err error)
+
+	PushAggregateStructs(ctx context.Context, aggregates []models.AggregateStruct) (err error)
 }

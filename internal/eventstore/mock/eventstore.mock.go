@@ -77,6 +77,20 @@ func (mr *MockEventstoreMockRecorder) Health(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Health", reflect.TypeOf((*MockEventstore)(nil).Health), arg0)
 }
 
+// PushAggregateStructs mocks base method
+func (m *MockEventstore) PushAggregateStructs(arg0 context.Context, arg1 []models.AggregateStruct) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PushAggregateStructs", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PushAggregateStructs indicates an expected call of PushAggregateStructs
+func (mr *MockEventstoreMockRecorder) PushAggregateStructs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushAggregateStructs", reflect.TypeOf((*MockEventstore)(nil).PushAggregateStructs), arg0, arg1)
+}
+
 // PushAggregates mocks base method
 func (m *MockEventstore) PushAggregates(arg0 context.Context, arg1 ...*models.Aggregate) error {
 	m.ctrl.T.Helper()

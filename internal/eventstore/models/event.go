@@ -30,7 +30,7 @@ type Event struct {
 	ResourceOwner    string
 }
 
-func eventData(i interface{}) ([]byte, error) {
+func EventData(i interface{}) ([]byte, error) {
 	switch v := i.(type) {
 	case []byte:
 		return v, nil
