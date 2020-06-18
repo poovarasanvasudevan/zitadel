@@ -11,52 +11,10 @@ import (
 	"github.com/caos/zitadel/internal/api/auth"
 	"github.com/caos/zitadel/internal/errors"
 	caos_errs "github.com/caos/zitadel/internal/errors"
-	es_mock "github.com/caos/zitadel/internal/eventstore/mock"
 	es_models "github.com/caos/zitadel/internal/eventstore/models"
 	org_model "github.com/caos/zitadel/internal/org/model"
 	"github.com/golang/mock/gomock"
 )
-
-type testOrgEventstore struct {
-	OrgEventstore
-	mockEventstore *es_mock.MockEventstore
-}
-
-func newTestEventstore(t *testing.T) *testOrgEventstore {
-	mock := mockEventstore(t)
-	return &testOrgEventstore{OrgEventstore: OrgEventstore{Eventstore: mock}, mockEventstore: mock}
-}
-
-func (es *testOrgEventstore) expectFilterEvents(events []*es_models.Event, err error) *testOrgEventstore {
-	es.mockEventstore.EXPECT().FilterEvents(gomock.Any(), gomock.Any()).Return(events, err)
-	return es
-}
-
-func (es *testOrgEventstore) expectPushEvents(startSequence uint64, err error) *testOrgEventstore {
-	es.mockEventstore.EXPECT().PushAggregates(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(_ context.Context, aggregates ...*es_models.Aggregate) error {
-			for _, aggregate := range aggregates {
-				for _, event := range aggregate.Events {
-					event.Sequence = startSequence
-					startSequence++
-				}
-			}
-			return err
-		})
-	return es
-}
-
-func (es *testOrgEventstore) expectAggregateCreator() *testOrgEventstore {
-	es.mockEventstore.EXPECT().AggregateCreator().Return(es_models.NewAggregateCreator("test"))
-	return es
-}
-
-func mockEventstore(t *testing.T) *es_mock.MockEventstore {
-	ctrl := gomock.NewController(t)
-	e := es_mock.NewMockEventstore(ctrl)
-
-	return e
-}
 
 func TestOrgEventstore_OrgByID(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -65,7 +23,7 @@ func TestOrgEventstore_OrgByID(t *testing.T) {
 		isErr            func(error) bool
 	}
 	type args struct {
-		es  *OrgEventstore
+		es  *testOrgEventstore
 		ctx context.Context
 		org *org_model.Org
 	}
@@ -77,7 +35,7 @@ func TestOrgEventstore_OrgByID(t *testing.T) {
 		{
 			name: "no input org",
 			args: args{
-				es:  GetMockedOrgByIDOk(ctrl),
+				es:  newTestEventstore(ctrl),
 				ctx: auth.NewMockContext("user", "org"),
 				org: nil,
 			},
@@ -89,7 +47,7 @@ func TestOrgEventstore_OrgByID(t *testing.T) {
 		{
 			name: "no aggregate id in input org",
 			args: args{
-				es:  GetMockedOrgByIDOk(ctrl),
+				es:  newTestEventstore(ctrl),
 				ctx: auth.NewMockContext("user", "org"),
 				org: &org_model.Org{ObjectRoot: es_models.ObjectRoot{Sequence: 4}},
 			},
@@ -101,7 +59,7 @@ func TestOrgEventstore_OrgByID(t *testing.T) {
 		{
 			name: "no events found success",
 			args: args{
-				es:  GetMockedOrgByIDOk(ctrl),
+				es:  newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				org: &org_model.Org{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "hodor"}},
 			},
@@ -113,7 +71,7 @@ func TestOrgEventstore_OrgByID(t *testing.T) {
 		{
 			name: "filter fail",
 			args: args{
-				es:  GetMockedOrgByIDFilterFailedOk(ctrl),
+				es:  newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{}, errors.ThrowInternal(nil, "EVENT-SAa1O", "message")),
 				ctx: auth.NewMockContext("user", "org"),
 				org: &org_model.Org{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "hodor"}},
 			},
@@ -125,7 +83,9 @@ func TestOrgEventstore_OrgByID(t *testing.T) {
 		{
 			name: "new events found and added success",
 			args: args{
-				es:  GetMockedOrgByIDEventsOk(ctrl),
+				es: newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{
+					{Sequence: 6},
+				}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				org: &org_model.Org{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "hodor-org", ChangeDate: time.Now(), CreationDate: time.Now()}},
 			},
@@ -162,7 +122,7 @@ func TestOrgEventstore_DeactivateOrg(t *testing.T) {
 		isErr            func(error) bool
 	}
 	type args struct {
-		es    *OrgEventstore
+		es    *testOrgEventstore
 		ctx   context.Context
 		orgID string
 	}
@@ -174,7 +134,7 @@ func TestOrgEventstore_DeactivateOrg(t *testing.T) {
 		{
 			name: "no input org",
 			args: args{
-				es:    GetMockedOrgByIDOk(ctrl),
+				es:    newTestEventstore(ctrl),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "",
 			},
@@ -185,9 +145,10 @@ func TestOrgEventstore_DeactivateOrg(t *testing.T) {
 		},
 		{
 			name: "push failed",
-
 			args: args{
-				es:    GetMockedDeactivateOrgPushFailed(ctrl),
+				es: newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{orgCreatedEvent()}, nil).
+					expectAggregateCreator().expectAggregateCreator().
+					expectPushEvents(0, errors.ThrowInternal(nil, "EVENT-S8WzW", "test")),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "hodor",
 			},
@@ -199,7 +160,9 @@ func TestOrgEventstore_DeactivateOrg(t *testing.T) {
 		{
 			name: "push correct",
 			args: args{
-				es:    GetMockedDeactivateOrgPushCorrect(ctrl),
+				es: newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{orgCreatedEvent()}, nil).
+					expectAggregateCreator().
+					expectPushEvents(6, nil),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "hodor",
 			},
@@ -211,7 +174,10 @@ func TestOrgEventstore_DeactivateOrg(t *testing.T) {
 		{
 			name: "org already inactive error",
 			args: args{
-				es:    GetMockedDeactivateOrgAlreadyInactive(ctrl),
+				es: newTestEventstore(ctrl).
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent(), orgInactiveEvent()}, nil).
+					expectAggregateCreator().
+					expectPushEvents(6, nil),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "hodor",
 			},
@@ -248,7 +214,7 @@ func TestOrgEventstore_ReactivateOrg(t *testing.T) {
 		isErr            func(error) bool
 	}
 	type args struct {
-		es    *OrgEventstore
+		es    *testOrgEventstore
 		ctx   context.Context
 		orgID string
 	}
@@ -260,7 +226,7 @@ func TestOrgEventstore_ReactivateOrg(t *testing.T) {
 		{
 			name: "no input org",
 			args: args{
-				es:    GetMockedOrgByIDOk(ctrl),
+				es:    newTestEventstore(ctrl),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "",
 			},
@@ -272,7 +238,10 @@ func TestOrgEventstore_ReactivateOrg(t *testing.T) {
 		{
 			name: "push failed",
 			args: args{
-				es:    GetMockedReactivateOrgPushFailed(ctrl),
+				es: newTestEventstore(ctrl).
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent(), orgInactiveEvent()}, nil).
+					expectAggregateCreator().
+					expectPushEvents(0, errors.ThrowInternal(nil, "EVENT-S8WzW", "test")),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "hodor",
 			},
@@ -284,7 +253,10 @@ func TestOrgEventstore_ReactivateOrg(t *testing.T) {
 		{
 			name: "push correct",
 			args: args{
-				es:    GetMockedReactivateOrgPushCorrect(ctrl),
+				es: newTestEventstore(ctrl).
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent(), orgInactiveEvent()}, nil).
+					expectAggregateCreator().
+					expectPushEvents(6, nil),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "hodor",
 			},
@@ -296,7 +268,10 @@ func TestOrgEventstore_ReactivateOrg(t *testing.T) {
 		{
 			name: "org already active error",
 			args: args{
-				es:    GetMockedReactivateOrgAlreadyInactive(ctrl),
+				es: newTestEventstore(ctrl).
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent()}, nil).
+					expectAggregateCreator().
+					expectPushEvents(6, nil),
 				ctx:   auth.NewMockContext("user", "org"),
 				orgID: "hodor",
 			},
@@ -333,7 +308,7 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		isErr            func(error) bool
 	}
 	type args struct {
-		es     *OrgEventstore
+		es     *testOrgEventstore
 		ctx    context.Context
 		member *org_model.OrgMember
 	}
@@ -345,7 +320,7 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		{
 			name: "no input member",
 			args: args{
-				es:     GetMockedOrgByIDOk(ctrl),
+				es:     newTestEventstore(ctrl),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: nil,
 			},
@@ -357,7 +332,7 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		{
 			name: "no aggregate id in input member",
 			args: args{
-				es:     GetMockedOrgByIDOk(ctrl),
+				es:     newTestEventstore(ctrl),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{ObjectRoot: es_models.ObjectRoot{Sequence: 4}, UserID: "asdf"},
 			},
@@ -369,7 +344,7 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		{
 			name: "no aggregate id in input member",
 			args: args{
-				es:     GetMockedOrgByIDOk(ctrl),
+				es:     newTestEventstore(ctrl),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "asdf"}},
 			},
@@ -381,7 +356,8 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		{
 			name: "no events found success",
 			args: args{
-				es:     GetMockedOrgByIDOk(ctrl),
+				es: newTestEventstore(ctrl).expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{}, nil),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "plants"}, UserID: "banana"},
 			},
@@ -393,7 +369,8 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		{
 			name: "filter fail",
 			args: args{
-				es:     GetMockedOrgByIDFilterFailedOk(ctrl),
+				es: newTestEventstore(ctrl).
+					expectFilterEvents([]*es_models.Event{}, errors.ThrowInternal(nil, "EVENT-SAa1O", "message")),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "plants"}, UserID: "banana"},
 			},
@@ -405,7 +382,10 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		{
 			name: "new events found and added success",
 			args: args{
-				es:     GetMockedOrgMemberByIDsNewEvents(ctrl),
+				es: newTestEventstore(ctrl).
+					expectFilterEvents([]*es_models.Event{
+						{Sequence: 6, Data: []byte("{\"userId\": \"banana\", \"roles\": [\"bananaa\"]}"), Type: model.OrgMemberChanged},
+					}, nil),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "plants", ChangeDate: time.Now(), CreationDate: time.Now()}, UserID: "banana"},
 			},
@@ -417,7 +397,7 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 		{
 			name: "not member of org error",
 			args: args{
-				es:     GetMockedOrgMemberByIDsNoMember(ctrl),
+				es:     newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{orgMemberAddedEvent(), orgMemberRemovedEvent()}, nil),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "plants", ChangeDate: time.Now(), CreationDate: time.Now()}, UserID: "apple"},
 			},
@@ -454,7 +434,7 @@ func TestOrgEventstore_AddOrgMember(t *testing.T) {
 		isErr            func(error) bool
 	}
 	type args struct {
-		es     *OrgEventstore
+		es     *testOrgEventstore
 		ctx    context.Context
 		member *org_model.OrgMember
 	}
@@ -466,7 +446,7 @@ func TestOrgEventstore_AddOrgMember(t *testing.T) {
 		{
 			name: "no input member",
 			args: args{
-				es:     GetMockedOrgByIDOk(ctrl),
+				es:     newTestEventstore(ctrl),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: nil,
 			},
@@ -478,7 +458,10 @@ func TestOrgEventstore_AddOrgMember(t *testing.T) {
 		{
 			name: "push failed",
 			args: args{
-				es:  GetMockedDeactivateOrgPushFailed(ctrl),
+				es: newTestEventstore(ctrl).
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent()}, nil).
+					expectAggregateCreator().
+					expectPushEvents(0, errors.ThrowInternal(nil, "EVENT-S8WzW", "test")),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{
@@ -497,7 +480,10 @@ func TestOrgEventstore_AddOrgMember(t *testing.T) {
 		{
 			name: "push correct",
 			args: args{
-				es:  GetMockedDeactivateOrgPushCorrect(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent()}, nil).
+					expectPushEvents(6, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{
@@ -516,7 +502,10 @@ func TestOrgEventstore_AddOrgMember(t *testing.T) {
 		{
 			name: "member already exists error",
 			args: args{
-				es:  AddOrgMemberMemberAlreadyExists(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{orgMemberAddedEvent()}, nil).
+					expectPushEvents(0, errors.ThrowAlreadyExists(nil, "EVENT-yLTI6", "weiss nöd wie teste")),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{
@@ -535,7 +524,10 @@ func TestOrgEventstore_AddOrgMember(t *testing.T) {
 		{
 			name: "member deleted success",
 			args: args{
-				es:  AddOrgMemberMemberDeletedSuccess(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectPushEvents(10, nil).
+					expectFilterEvents([]*es_models.Event{orgMemberAddedEvent(), orgMemberRemovedEvent()}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{
@@ -554,7 +546,10 @@ func TestOrgEventstore_AddOrgMember(t *testing.T) {
 		{
 			name: "org not exists error",
 			args: args{
-				es:  AddOrgMemberOrgNotExistsError(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents(nil, nil).
+					expectPushEvents(0, errors.ThrowAlreadyExists(nil, "EVENT-yLTI6", "weiss nöd wie teste")),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{
@@ -598,7 +593,7 @@ func TestOrgEventstore_ChangeOrgMember(t *testing.T) {
 		expectedSequence uint64
 	}
 	type args struct {
-		es     *OrgEventstore
+		es     *testOrgEventstore
 		ctx    context.Context
 		member *org_model.OrgMember
 	}
@@ -610,7 +605,7 @@ func TestOrgEventstore_ChangeOrgMember(t *testing.T) {
 		{
 			name: "no input member",
 			args: args{
-				es:     GetMockedOrgByIDOk(ctrl),
+				es:     newTestEventstore(ctrl),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: nil,
 			},
@@ -622,7 +617,23 @@ func TestOrgEventstore_ChangeOrgMember(t *testing.T) {
 		{
 			name: "member not found error",
 			args: args{
-				es:  ChangeOrgMemberMemberNotFoundError(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgAdded,
+							Sequence:    4,
+							Data:        []byte("{}"),
+						},
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgMemberAdded,
+							Data:        []byte(`{"userId": "brudi", "roles": ["master of desaster"]}`),
+							Sequence:    6,
+						},
+					},
+						nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -637,9 +648,10 @@ func TestOrgEventstore_ChangeOrgMember(t *testing.T) {
 		},
 		{
 			name: "member found no changes error",
-
 			args: args{
-				es:  ChangeOrgMemberMemberFoundNoChangesError(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent(), orgMemberAddedEvent()}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -655,7 +667,10 @@ func TestOrgEventstore_ChangeOrgMember(t *testing.T) {
 		{
 			name: "push error",
 			args: args{
-				es:  ChangeOrgMemberPushError(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent(), orgMemberAddedEvent()}, nil).
+					expectPushEvents(0, errors.ThrowInternal(nil, "PEVENT-3wqa2", "test")),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -671,7 +686,10 @@ func TestOrgEventstore_ChangeOrgMember(t *testing.T) {
 		{
 			name: "change success",
 			args: args{
-				es:  ChangeOrgMemberChangeSuccess(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{orgCreatedEvent(), orgMemberAddedEvent()}, nil).
+					expectPushEvents(7, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -711,7 +729,7 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 		isErr func(error) bool
 	}
 	type args struct {
-		es     *OrgEventstore
+		es     *testOrgEventstore
 		ctx    context.Context
 		member *org_model.OrgMember
 	}
@@ -723,7 +741,7 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 		{
 			name: "no input member",
 			args: args{
-				es:     GetMockedOrgByIDOk(ctrl),
+				es:     newTestEventstore(ctrl),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: nil,
 			},
@@ -733,9 +751,23 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 		},
 		{
 			name: "member not found error",
-
 			args: args{
-				es:  RemoveOrgMemberMemberNotFoundError(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgAdded,
+							Sequence:    4,
+							Data:        []byte("{}"),
+						},
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgMemberAdded,
+							Data:        []byte(`{"userId": "brudi", "roles": ["master of desaster"]}`),
+							Sequence:    6,
+						},
+					}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -750,7 +782,23 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 		{
 			name: "push error",
 			args: args{
-				es:  ChangeOrgMemberPushError(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgAdded,
+							Sequence:    4,
+							Data:        []byte("{}"),
+						},
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgMemberAdded,
+							Data:        []byte(`{"userId": "hodor", "roles": ["master"]}`),
+							Sequence:    6,
+						},
+					}, nil).
+					expectPushEvents(0, errors.ThrowInternal(nil, "PEVENT-3wqa2", "test")),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -764,7 +812,23 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 		{
 			name: "remove success",
 			args: args{
-				es:  ChangeOrgMemberChangeSuccess(ctrl),
+				es: newTestEventstore(ctrl).
+					expectAggregateCreator().
+					expectFilterEvents([]*es_models.Event{
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgAdded,
+							Sequence:    4,
+							Data:        []byte("{}"),
+						},
+						{
+							AggregateID: "hodor-org",
+							Type:        model.OrgMemberAdded,
+							Data:        []byte(`{"userId": "hodor", "roles": ["master"]}`),
+							Sequence:    6,
+						},
+					}, nil).
+					expectPushEvents(7, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -789,42 +853,10 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 	}
 }
 
-func orgCreatedEvent() *es_models.Event {
-	return &es_models.Event{
-		AggregateID:      "hodor-org",
-		AggregateType:    model.OrgAggregate,
-		AggregateVersion: "v1",
-		CreationDate:     time.Now().Add(-1 * time.Minute),
-		Data:             []byte(`{"name": "hodor-org", "domain":"hodor.org"}`),
-		EditorService:    "testsvc",
-		EditorUser:       "testuser",
-		ID:               "sdlfö4t23kj",
-		ResourceOwner:    "hodor-org",
-		Sequence:         32,
-		Type:             model.OrgAdded,
-	}
-}
-
-func orgInactiveEvent() *es_models.Event {
-	return &es_models.Event{
-		AggregateID:      "hodor-org",
-		AggregateType:    model.OrgAggregate,
-		AggregateVersion: "v1",
-		CreationDate:     time.Now().Add(-1 * time.Minute),
-		Data:             nil,
-		EditorService:    "testsvc",
-		EditorUser:       "testuser",
-		ID:               "sdlfö4t23kj",
-		ResourceOwner:    "hodor-org",
-		Sequence:         52,
-		Type:             model.OrgDeactivated,
-	}
-}
-
 func TestChangesOrg(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	type args struct {
-		es           *OrgEventstore
+		es           *testOrgEventstore
 		id           string
 		lastSequence uint64
 		limit        uint64
@@ -843,7 +875,7 @@ func TestChangesOrg(t *testing.T) {
 		{
 			name: "changes from events, ok",
 			args: args{
-				es:           GetMockChangesOrgOK(ctrl),
+				es:           newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{orgChangesEvent()}, nil),
 				id:           "1",
 				lastSequence: 0,
 				limit:        0,
@@ -856,7 +888,7 @@ func TestChangesOrg(t *testing.T) {
 		{
 			name: "changes from events, no events",
 			args: args{
-				es:           GetMockChangesOrgNoEvents(ctrl),
+				es:           newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{}, nil),
 				id:           "2",
 				lastSequence: 0,
 				limit:        0,
