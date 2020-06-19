@@ -45,12 +45,6 @@ func (es *testOrgEventstore) expectAggregateCreator() *testOrgEventstore {
 	return es
 }
 
-func GetMockedEventstore(ctrl *gomock.Controller, mockEs *mock.MockEventstore) *OrgEventstore {
-	return &OrgEventstore{
-		Eventstore: mockEs,
-	}
-}
-
 func orgCreatedEvent() *es_models.Event {
 	return &es_models.Event{
 		AggregateID:      "hodor-org",
@@ -64,6 +58,12 @@ func orgCreatedEvent() *es_models.Event {
 		ResourceOwner:    "hodor-org",
 		Sequence:         32,
 		Type:             model.OrgAdded,
+	}
+}
+
+func orgCreatedSimpleEvent() *es_models.Event {
+	return &es_models.Event{
+		Sequence: 6,
 	}
 }
 
@@ -83,12 +83,38 @@ func orgInactiveEvent() *es_models.Event {
 	}
 }
 
+func orgMemberOrgAddedEvent() *es_models.Event {
+	return &es_models.Event{
+		AggregateID: "hodor-org",
+		Type:        model.OrgAdded,
+		Sequence:    4,
+		Data:        []byte("{}"),
+	}
+}
+
 func orgMemberAddedEvent() *es_models.Event {
 	return &es_models.Event{
 		AggregateID: "hodor-org",
 		Type:        model.OrgMemberAdded,
 		Data:        []byte(`{"userId": "hodor", "roles": ["master"]}`),
 		Sequence:    6,
+	}
+}
+
+func orgMemberAddedEventNoMemberFound() *es_models.Event {
+	return &es_models.Event{
+		AggregateID: "hodor-org",
+		Type:        model.OrgMemberAdded,
+		Data:        []byte(`{"userId": "brudi", "roles": ["master of desaster"]}`),
+		Sequence:    6,
+	}
+}
+
+func orgMemberChangedEvent() *es_models.Event {
+	return &es_models.Event{
+		Sequence: 6,
+		Data:     []byte("{\"userId\": \"banana\", \"roles\": [\"bananaa\"]}"),
+		Type:     model.OrgMemberChanged,
 	}
 }
 

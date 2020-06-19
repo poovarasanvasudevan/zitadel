@@ -83,9 +83,7 @@ func TestOrgEventstore_OrgByID(t *testing.T) {
 		{
 			name: "new events found and added success",
 			args: args{
-				es: newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{
-					{Sequence: 6},
-				}, nil),
+				es:  newTestEventstore(ctrl).expectFilterEvents([]*es_models.Event{orgCreatedSimpleEvent()}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				org: &org_model.Org{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "hodor-org", ChangeDate: time.Now(), CreationDate: time.Now()}},
 			},
@@ -383,9 +381,7 @@ func TestOrgEventstore_OrgMemberByIDs(t *testing.T) {
 			name: "new events found and added success",
 			args: args{
 				es: newTestEventstore(ctrl).
-					expectFilterEvents([]*es_models.Event{
-						{Sequence: 6, Data: []byte("{\"userId\": \"banana\", \"roles\": [\"bananaa\"]}"), Type: model.OrgMemberChanged},
-					}, nil),
+					expectFilterEvents([]*es_models.Event{orgMemberChangedEvent()}, nil),
 				ctx:    auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{ObjectRoot: es_models.ObjectRoot{Sequence: 4, AggregateID: "plants", ChangeDate: time.Now(), CreationDate: time.Now()}, UserID: "banana"},
 			},
@@ -619,21 +615,7 @@ func TestOrgEventstore_ChangeOrgMember(t *testing.T) {
 			args: args{
 				es: newTestEventstore(ctrl).
 					expectAggregateCreator().
-					expectFilterEvents([]*es_models.Event{
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgAdded,
-							Sequence:    4,
-							Data:        []byte("{}"),
-						},
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgMemberAdded,
-							Data:        []byte(`{"userId": "brudi", "roles": ["master of desaster"]}`),
-							Sequence:    6,
-						},
-					},
-						nil),
+					expectFilterEvents([]*es_models.Event{orgMemberOrgAddedEvent(), orgMemberAddedEventNoMemberFound()}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -754,20 +736,7 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 			args: args{
 				es: newTestEventstore(ctrl).
 					expectAggregateCreator().
-					expectFilterEvents([]*es_models.Event{
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgAdded,
-							Sequence:    4,
-							Data:        []byte("{}"),
-						},
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgMemberAdded,
-							Data:        []byte(`{"userId": "brudi", "roles": ["master of desaster"]}`),
-							Sequence:    6,
-						},
-					}, nil),
+					expectFilterEvents([]*es_models.Event{orgMemberOrgAddedEvent(), orgMemberAddedEventNoMemberFound()}, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
 					ObjectRoot: es_models.ObjectRoot{AggregateID: "hodor-org", Sequence: 5},
@@ -784,20 +753,7 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 			args: args{
 				es: newTestEventstore(ctrl).
 					expectAggregateCreator().
-					expectFilterEvents([]*es_models.Event{
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgAdded,
-							Sequence:    4,
-							Data:        []byte("{}"),
-						},
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgMemberAdded,
-							Data:        []byte(`{"userId": "hodor", "roles": ["master"]}`),
-							Sequence:    6,
-						},
-					}, nil).
+					expectFilterEvents([]*es_models.Event{orgMemberOrgAddedEvent(), orgMemberAddedEvent()}, nil).
 					expectPushEvents(0, errors.ThrowInternal(nil, "PEVENT-3wqa2", "test")),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
@@ -814,20 +770,7 @@ func TestOrgEventstore_RemoveOrgMember(t *testing.T) {
 			args: args{
 				es: newTestEventstore(ctrl).
 					expectAggregateCreator().
-					expectFilterEvents([]*es_models.Event{
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgAdded,
-							Sequence:    4,
-							Data:        []byte("{}"),
-						},
-						{
-							AggregateID: "hodor-org",
-							Type:        model.OrgMemberAdded,
-							Data:        []byte(`{"userId": "hodor", "roles": ["master"]}`),
-							Sequence:    6,
-						},
-					}, nil).
+					expectFilterEvents([]*es_models.Event{orgMemberOrgAddedEvent(), orgMemberAddedEvent()}, nil).
 					expectPushEvents(7, nil),
 				ctx: auth.NewMockContext("user", "org"),
 				member: &org_model.OrgMember{
