@@ -14,7 +14,7 @@
      export ZITADELCONSOLE=console.${ZITADELFQDN}
   ```
 - [ ] create an ops repository to desribe your cluster
-- [ ] create a folderstructure for your environments
+- [ ] create a folderstructure for your environments in ops-repository
   - e.g. :
   ```bash
   k8s/workload
@@ -39,8 +39,8 @@
 - [ ] create a secrets repository with [gopass](https://github.com/gopasspw/gopass)
 
 ## install with kubernetes
-- [ ] create environments overlay
 - [ ] configure namespace
+- [ ] configure environments overlay
 - [ ] configure hosts
   - [ ] prepare configure SSL certificates when not using let´s encrypt
 - [ ] configure mapping
