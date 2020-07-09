@@ -10,3 +10,4 @@ resources:
 -  service-api-auth.yaml
 -  service-api-mangagement.yaml
 -  service-console.yaml
+-  flow.yaml
