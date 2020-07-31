@@ -17,7 +17,7 @@ jobs:
       with:
         args: --basepath ${{ github.event.repository.name }}
     - name: check output
-      run: ls -l /app && ls -l /app/__sapper__/export
+      run: ls -l /
     - name: Archive Production Artifact
       uses: actions/upload-artifact@master
       with:
