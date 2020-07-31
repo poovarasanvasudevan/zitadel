@@ -12,8 +12,12 @@ jobs:
     steps:
     - name: Checkout Repo
       uses: actions/checkout@master
-    - name: after checkout
-      run:  ls -la
+    - name: Upload doc folder for site generator
+      uses: actions/upload-artifact@v2
+      with:
+        name: docs
+        path: docs
+
     - name: Build Docs
       uses: caos/site@master
       with:
