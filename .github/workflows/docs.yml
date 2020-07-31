@@ -16,6 +16,8 @@ jobs:
       uses: caos/site@master
       with:
         args: --basepath ${{ github.event.repository.name }}
+    - name: check output
+      run: ls -l /app && ls -l /app/__sapper__/export
     - name: Archive Production Artifact
       uses: actions/upload-artifact@master
       with:
