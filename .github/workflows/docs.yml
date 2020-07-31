@@ -20,7 +20,7 @@ jobs:
       uses: actions/upload-artifact@master
       with:
         name: export
-        path: __sapper__/export/${{ github.event.repository.name }}
+        path: /app/__sapper__/export/${{ github.event.repository.name }}
         
   deploydocs:
     name: Deploy
@@ -33,11 +33,11 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: export
-          path: __sapper__/export/${{ github.event.repository.name }}
+          path: /app/__sapper__/export/${{ github.event.repository.name }}
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@releases/v3
         with:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: gh-pages
-          FOLDER: __sapper__/export/${{ github.event.repository.name }}
+          FOLDER: /app/__sapper__/export/${{ github.event.repository.name }}
           CLEAN: true
