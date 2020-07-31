@@ -12,24 +12,6 @@ jobs:
     steps:
     - name: Checkout Repo
       uses: actions/checkout@master
-#    - name: Upload doc folder for site generator
-#      uses: actions/upload-artifact@v2
-#      with:
-#        name: docs
-#        path: docs
-#    - name: Checkout Docs
-#      uses: actions/checkout@master
-#      with:
-#        repository: caos/site
-#    - name: cleanup docs
-#      run: rm -rf docs
-#    - name: Download docs from zitadel
-#      uses: actions/download-artifact@v2
-#      with:
-#        name: docs
-#    - name: docker build
-#      run: docker build .
- 
     - name: Build Docs
       uses: caos/site@master
       with:
@@ -40,23 +22,23 @@ jobs:
         name: export
         path: __sapper__/export/${{ github.event.repository.name }}
         
-  # deploydocs:
-  #   name: Deploy
-  #   needs: builddocs
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/master'
-  #   steps:
-  #     - name: Checkout Repo
-  #       uses: actions/checkout@master
-  #     - name: Download Artifact
-  #       uses: actions/download-artifact@master
-  #       with:
-  #         name: export
-  #         path: __sapper__/export/${{ github.event.repository.name }}
-  #     - name: Deploy
-  #       uses: JamesIves/github-pages-deploy-action@releases/v3
-  #       with:
-  #         # ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-  #         BRANCH: gh-pages
-  #         FOLDER: __sapper__/export/${{ github.event.repository.name }}
-  #         CLEAN: true
+  deploydocs:
+    name: Deploy
+    needs: builddocs
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@master
+      - name: Download Artifact
+        uses: actions/download-artifact@master
+        with:
+          name: export
+          path: __sapper__/export/${{ github.event.repository.name }}
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@releases/v3
+        with:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: __sapper__/export/${{ github.event.repository.name }}
+          CLEAN: true
