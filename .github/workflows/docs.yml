@@ -21,13 +21,15 @@ jobs:
       uses: actions/checkout@master
       with:
         repository: caos/site
+    - name: cleanup docs
+      run: rm -rf docs
     - name: Download docs from zitadel
       uses: actions/download-artifact@v2
       with:
         name: docs
     - name: docker build
       run: docker build .
-      
+ 
     - name: Build Docs
       uses: caos/site@master
       with:
