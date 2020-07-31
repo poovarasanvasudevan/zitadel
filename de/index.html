@@ -1,0 +1,45 @@
+<!doctype html> <html class="theme-default typo-default" lang=en> <head> <meta charset=utf-8> <meta content="width=device-width,initial-scale=1" name=viewport> <meta content=#159794 name=theme-color> <base href=/ > <link href=prism.css rel=stylesheet> <link href=manifest.json rel=manifest> <link href=icons/favicon.ico rel=icon type=image/x-icon> <link href=https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css rel=stylesheet> <link href=client/main.9972614.css rel=stylesheet> <style>.hljs,.hljs-subst{color:#e8eaed}.hljs-comment{color:#999}.hljs-tag{color:#3dc9b0}.hljs-keyword{color:#ff5370}.hljs-attr{color:#666}.hljs-number{color:#3dc9b0}.hljs-deletion,.hljs-quote,.hljs-selector-class,.hljs-selector-id,.hljs-string,.hljs-template-tag,.hljs-type{color:#298372}.hljs-section,.hljs-title{color:#298372}.hljs-literal{color:#3dc9b0}.hljs-meta{color:#e8eaed}.hljs-meta-string{color:#e8eaed}</style> <noscript id=sapper-head-start></noscript><title> Caos • Documentation </title><noscript id=sapper-head-end></noscript> </head> <body> <div id=sapper> <header class="svelte-s5egit visible"><nav class=svelte-s5egit><a href=. rel=prefetch class="svelte-s5egit home" title=Homepage> Caos Docs</a> <ul class="svelte-s5egit primary"><li class=lang><a href=de rel=prefetch>DE</a></li> <li class=lang><a href=it rel=prefetch>IT</a></li> <li class=lang><a href=en rel=prefetch>EN</a></li> <li><a href=https://github.com/caos><i class="la-github lab" style=font-size:24px;height:24px><use xlink:href="#lab la-github"></use></i></a></li> <i class="svelte-s5egit hide-if-desktop la-chevron-down las"></i></ul></nav></header> <main class=svelte-ke1jp4> <img alt="caos logo" class="svelte-14awfkp caos-back" src=logos/caos-logo-outline-1px-pictureonly.svg> <section class=svelte-1ksv8kk></section> <section class=svelte-1ksv8kk><img alt=logo class="svelte-14awfkp logo" src=icons/android-chrome-256x256.png> <h2>Das ist unser doc generator</h2> <p>Please take a look at the demo <a href=de/get_started>here</a></p> <div class="svelte-1lk22fs split"><div class="svelte-1lk22fs what" style=grid-area:what><div class=description slot=what><p>To integrate this generator to your repository, add this build to your workflow! </p> <p>To learn more about conventions used, <a href=de/get_started>take a look here</a></div></div> <div class="svelte-1lk22fs how" style=grid-area:how><div style=grid-area:start;display:flex;flex-direction:column;min-width:0 slot=how><pre class=language-bash style="margin:0 0 1em 0;min-width:0;min-height:0">name: Docs
+on:
+  push:
+    branches:
+      - master
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  builddocs:
+    name: Build Doc Frontend
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@master
+    - name: Build Docs
+      uses: caos/site@master
+      with:
+        args: --basepath ${{ github.event.repository.name }}
+    - name: Archive Production Artifact
+      uses: actions/upload-artifact@master
+      with:
+        name: export
+        path: __sapper__/export/${{ github.event.repository.name }}
+  deploydocs:
+    name: Deploy
+    needs: builddocs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@master
+      - name: Download Artifact
+        uses: actions/download-artifact@master
+        with:
+          name: export
+          path: __sapper__/export/${{ github.event.repository.name }}
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@releases/v3
+        with:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: __sapper__/export/${{ github.event.repository.name }}
+          CLEAN: true
+</pre></div></div></div></section></main></div> <script>__SAPPER__={baseUrl:"",preloaded:[void 0,{workflow:"name: Docs\non:\n  push:\n    branches:\n      - master\n\nenv:\n  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n\njobs:\n  builddocs:\n    name: Build Doc Frontend\n    runs-on: ubuntu-latest\n    steps:\n    - name: Checkout Repo\n      uses: actions\u002Fcheckout@master\n    - name: Build Docs\n      uses: caos\u002Fsite@master\n      with:\n        args: --basepath ${{ github.event.repository.name }}\n    - name: Archive Production Artifact\n      uses: actions\u002Fupload-artifact@master\n      with:\n        name: export\n        path: __sapper__\u002Fexport\u002F${{ github.event.repository.name }}\n  deploydocs:\n    name: Deploy\n    needs: builddocs\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout Repo\n        uses: actions\u002Fcheckout@master\n      - name: Download Artifact\n        uses: actions\u002Fdownload-artifact@master\n        with:\n          name: export\n          path: __sapper__\u002Fexport\u002F${{ github.event.repository.name }}\n      - name: Deploy\n        uses: JamesIves\u002Fgithub-pages-deploy-action@releases\u002Fv3\n        with:\n          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}\n          BRANCH: gh-pages\n          FOLDER: __sapper__\u002Fexport\u002F${{ github.event.repository.name }}\n          CLEAN: true\n",lang:"de"}]};if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js');(function(){try{eval("async function x(){}");var main="/client/client.658078ef.js"}catch(e){main="/client/legacy/client.d06afd47.js"};var s=document.createElement("script");try{new Function("if(0)import('')")();s.src=main;s.type="module";s.crossOrigin="use-credentials";}catch(e){s.src="/client/shimport@1.0.1.js";s.setAttribute("data-main",main);}document.head.appendChild(s);}());</script> 
