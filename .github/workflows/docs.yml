@@ -16,13 +16,11 @@ jobs:
       uses: actions/checkout@master
     - name: Build Docs
       uses: caos/site@master
-      with:
-        args: --basepath ${{ github.event.repository.name }}
     - name: Archive Production Artifact
       uses: actions/upload-artifact@master
       with:
         name: export
-        path: __sapper__/export/${{ github.event.repository.name }}
+        path: __sapper__/export
         
   deploydocs:
     name: Deploy
@@ -35,11 +33,11 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: export
-          path: __sapper__/export/${{ github.event.repository.name }}
+          path: __sapper__/export
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@releases/v3
         with:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: gh-pages
-          FOLDER: __sapper__/export/${{ github.event.repository.name }}
+          FOLDER: __sapper__/export
           CLEAN: true
