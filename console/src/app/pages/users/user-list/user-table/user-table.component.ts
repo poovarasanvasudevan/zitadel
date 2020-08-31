@@ -5,7 +5,7 @@ import { MatTableDataSource } from '@angular/material/table';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { UserView } from 'src/app/proto/generated/auth_pb';
-import { UserSearchKey, UserSearchQuery, UserSearchResponse } from 'src/app/proto/generated/management_pb';
+import { SearchMethod, UserSearchKey, UserSearchQuery, UserSearchResponse } from 'src/app/proto/generated/management_pb';
 import { ManagementService } from 'src/app/services/mgmt.service';
 import { ToastService } from 'src/app/services/toast.service';
 
@@ -79,9 +79,10 @@ export class UserTableComponent implements OnInit {
         this.loadingSubject.next(true);
         const query = new UserSearchQuery();
         query.setKey(UserSearchKey.USERSEARCHKEY_TYPE);
+        query.setMethod(SearchMethod.SEARCHMETHOD_EQUALS);
         query.setValue(filterTypeValue);
 
-        this.userService.SearchUsers(limit, offset).then(resp => {
+        this.userService.SearchUsers(limit, offset, [query]).then(resp => {
             this.userResult = resp.toObject();
             this.dataSource.data = this.userResult.resultList;
             console.log(this.userResult.resultList);

@@ -20,6 +20,7 @@ import { ProjectMembersDataSource } from './project-members-datasource';
     styleUrls: ['./project-members.component.scss'],
 })
 export class ProjectMembersComponent {
+    public ProjectType: any = ProjectType;
     public INITIALPAGESIZE: number = 25;
     public project!: ProjectView.AsObject | ProjectGrantView.AsObject;
     public projectType: ProjectType = ProjectType.PROJECTTYPE_OWNED;
