@@ -122,8 +122,8 @@
                                     <span class="label">{{ 'MENU.HUMANUSERS' | translate }}</span>
                                 </a>
 
-                                <a @navitem class="nav-item" [routerLinkActive]="['active']"
-                                    [routerLink]="[ '/users/list/machines']"
+                                <a @navitem *ngIf="authenticationService.env === 'prod'" class="nav-item"
+                                    [routerLinkActive]="['active']" [routerLink]="[ '/users/list/machines']"
                                     [routerLinkActiveOptions]="{ exact: true }">
                                     <i class="icon las la-users-cog"></i>
                                     <span class="label">{{ 'MENU.MACHINEUSERS' | translate }}</span>

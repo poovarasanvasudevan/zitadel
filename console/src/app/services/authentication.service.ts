@@ -8,6 +8,7 @@ import { StatehandlerService } from './statehandler.service';
     providedIn: 'root',
 })
 export class AuthenticationService {
+    public env: string = '';
     private authConfig!: AuthConfig;
     private _authenticated: boolean = false;
     private readonly _authenticationChanged: BehaviorSubject<
@@ -63,6 +64,10 @@ export class AuthenticationService {
         this.oauthService.logOut();
         this._authenticated = false;
         this._authenticationChanged.next(false);
+    }
+
+    public set envflag(flagvalue: string) {
+        this.env = flagvalue;
     }
 }
 

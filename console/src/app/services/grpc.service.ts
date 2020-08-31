@@ -67,6 +67,7 @@ export class GrpcService {
                     };
 
                     this.authenticationService.initConfig(authConfig);
+                    this.authenticationService.env = data.envflag;
                 }
                 return Promise.resolve(data);
             }).catch(() => {
